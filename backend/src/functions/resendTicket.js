@@ -2,6 +2,7 @@ const { ok } = require('../lib/http');
 const { getTicket, getEvent, markTicketSent } = require('../lib/db');
 const { generateQrPngBuffer } = require('../lib/qrcode');
 const { sendTicketEmail } = require('../lib/email');
+const { isTelegramEnabled, buildDeepLink } = require('../lib/telegram');
 const { authenticateAdmin } = require('../lib/auth');
 const { getJwtSecret } = require('../lib/secrets');
 
@@ -37,6 +38,8 @@ exports.handler = async (event) => {
       qrBuffer,
       ticketId: ticket.ticketId,
       frontendBaseUrl: process.env.FRONTEND_BASE_URL,
+      telegramLink:
+        ticket.telegramLinkCode && isTelegramEnabled() ? buildDeepLink(ticket.telegramLinkCode) : null,
     });
 
     if (ticket.status === 'ISSUED') await markTicketSent(ticketId);

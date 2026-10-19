@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { SESClient, SendRawEmailCommand } = require('@aws-sdk/client-ses');
+const { buildTicketIcs } = require('./calendar');
 
 const ses = new SESClient({});
 const transporter = nodemailer.createTransport({
@@ -20,6 +21,7 @@ const transporter = nodemailer.createTransport({
  * @param {Buffer}  opts.qrBuffer       - QR code PNG buffer
  * @param {string}  opts.ticketId       - Used to build the manage link
  * @param {string}  [opts.frontendBaseUrl] - Base URL of the frontend app
+ * @param {string}  [opts.telegramLink]   - One-time t.me deep link to receive the ticket on Telegram
  */
 async function sendTicketEmail({
   toEmail,
@@ -30,6 +32,7 @@ async function sendTicketEmail({
   qrBuffer,
   ticketId,
   frontendBaseUrl,
+  telegramLink,
 }) {
   const manageUrl =
     ticketId && frontendBaseUrl
@@ -60,6 +63,38 @@ async function sendTicketEmail({
       </p>`
     : '';
 
+  const telegramSection = telegramLink
+    ? `
+      <p style="margin-top:24px;border-top:1px solid #eee;padding-top:16px;">
+        <strong>Want your ticket on your phone?</strong><br>
+        Get the QR code on Telegram, plus a message when you're checked in at the gate.
+      </p>
+      <p>
+        <a
+          href="${telegramLink}"
+          style="
+            display:inline-block;
+            background:#229ED9;
+            color:#ffffff;
+            text-decoration:none;
+            padding:12px 20px;
+            border-radius:6px;
+            font-weight:bold;
+          "
+        >
+          Get ticket on Telegram
+        </a>
+      </p>`
+    : '';
+
+  const ics = buildTicketIcs({
+    ticketId,
+    eventName,
+    eventDate,
+    venue,
+    description: `Your EventPass ticket. Ticket ID: ${ticketId}${manageUrl ? `\nManage: ${manageUrl}` : ''}`,
+  });
+
   await transporter.sendMail({
     from: process.env.SENDER_EMAIL,
     to: toEmail,
@@ -79,8 +114,12 @@ async function sendTicketEmail({
   It is single-use, so don&rsquo;t share it.
 </p>
       <img src="cid:ticket-qr" alt="Ticket QR code" width="240" height="240" />
+      ${telegramSection}
       ${manageSection}
+      ${ics ? '<p style="color:#888;font-size:13px;">A calendar invite (event.ics) is attached.</p>' : ''}
     `,
+    // Shows as an "Add to calendar" card in Gmail/Outlook
+    ...(ics && { icalEvent: { filename: 'event.ics', method: 'PUBLISH', content: ics } }),
     attachments: [
       {
         filename: 'ticket-qr.png',

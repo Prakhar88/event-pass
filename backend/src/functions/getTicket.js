@@ -38,7 +38,7 @@ exports.handler = async (event) => {
         });
       }
 
-      const { qrToken, ...safeItem } = item;
+      const { qrToken, telegramLinkCode, ...safeItem } = item;
       return ok(200, safeItem);
     }
 

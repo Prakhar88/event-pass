@@ -1,11 +1,11 @@
 {
-    "name": "attendee_app",
-    "short_name": "attendee_app",
+    "name": "EventPass Gate",
+    "short_name": "EP Gate",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "EventPass gate scanner: verify QR tickets at the venue.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

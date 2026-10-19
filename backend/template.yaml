@@ -20,13 +20,21 @@ Parameters:
     Type: String
     Default: 'http://localhost:5174'
     Description: Base URL of the frontend app used in ticket emails (e.g. https://your-frontend-domain.com)
+  TelegramBotToken:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Telegram bot token from @BotFather (leave empty to disable Telegram delivery)
+  TelegramBotUsername:
+    Type: String
+    Default: ''
+    Description: Telegram bot username without the @ (used to build t.me deep links)
 
 Globals:
   Function:
     Runtime: nodejs20.x
     Timeout: 10
     MemorySize: 256
-    CodeUri: src/
     Environment:
       Variables:
         ADMINS_TABLE: !Ref AdminsTable
@@ -38,6 +46,8 @@ Globals:
         ADMIN_REGISTRATION_SECRET: !Ref AdminRegistrationSecret
         ALLOWED_ORIGIN: !Ref AllowedOrigin
         FRONTEND_BASE_URL: !Ref FrontendBaseUrl
+        TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+        TELEGRAM_BOT_USERNAME: !Ref TelegramBotUsername
 
 Resources:
 
@@ -101,6 +111,8 @@ Resources:
           AttributeType: S
         - AttributeName: eventId
           AttributeType: S
+        - AttributeName: telegramLinkCode
+          AttributeType: S
       KeySchema:
         - AttributeName: ticketId
           KeyType: HASH
@@ -113,6 +125,13 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        # Sparse index: only tickets with an unused Telegram link code appear here
+        - IndexName: TelegramLinkIndex
+          KeySchema:
+            - AttributeName: telegramLinkCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
 
   JwtSecret:
     Type: AWS::SecretsManager::Secret
@@ -150,6 +169,7 @@ Resources:
   AdminRegisterFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/adminRegister.handler
       Policies:
         - DynamoDBCrudPolicy:
@@ -169,6 +189,7 @@ Resources:
   AdminLoginFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/adminLogin.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -190,6 +211,7 @@ Resources:
   CreateEventFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/createEvent.handler
       Policies:
         - DynamoDBWritePolicy:
@@ -215,6 +237,7 @@ Resources:
   ListAdminEventsFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/listAdminEvents.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -234,6 +257,7 @@ Resources:
   GetAdminEventFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/getAdminEvent.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -253,6 +277,7 @@ Resources:
   ListEventTicketsFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/listEventTickets.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -274,6 +299,7 @@ Resources:
   GetEventStatsFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/getEventStats.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -297,6 +323,7 @@ Resources:
   ListPublicEventsFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/listPublicEvents.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -318,6 +345,7 @@ Resources:
   GetEventFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/getEvent.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -339,6 +367,7 @@ Resources:
   IssueTicketFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/issueTicket.handler
       Timeout: 15
       Policies:
@@ -371,6 +400,7 @@ Resources:
   GetTicketFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/getTicket.handler
       Policies:
         - DynamoDBReadPolicy:
@@ -400,6 +430,7 @@ Resources:
   VerifyTicketFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/verifyTicket.handler
       Policies:
         - DynamoDBCrudPolicy:
@@ -419,11 +450,33 @@ Resources:
               ApiKeyRequired: true
 
 
+  # --- Telegram Bot ---
+
+  TelegramWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: functions/telegramWebhook.handler
+      Timeout: 15
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EventsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TicketsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TicketApi
+            Path: /telegram/webhook
+            Method: post
+
   # --- Ticket Management Operations ---
 
   ResendTicketFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/resendTicket.handler
       Timeout: 15
       Policies:
@@ -456,6 +509,7 @@ Resources:
   CancelTicketFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/cancelTicket.handler
       Policies:
         - DynamoDBCrudPolicy:
@@ -485,6 +539,7 @@ Resources:
   RequestBookingVerificationFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/requestBookingVerification.handler
       Timeout: 15
       Policies:
@@ -511,6 +566,7 @@ Resources:
   VerifyAndBookTicketFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/verifyAndBookTicket.handler
       Timeout: 15
       Policies:
@@ -541,6 +597,7 @@ Resources:
   RequestCancellationCodeFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/requestCancellationCode.handler
       Timeout: 15
       Policies:
@@ -567,6 +624,7 @@ Resources:
   VerifyCancellationCodeFunction:
     Type: AWS::Serverless::Function
     Properties:
+      CodeUri: src/
       Handler: functions/verifyCancellationCode.handler
       Policies:
         - DynamoDBCrudPolicy:

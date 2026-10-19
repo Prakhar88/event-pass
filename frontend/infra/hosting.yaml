@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Static HTTPS hosting for the EventPass frontends (one AWS Amplify app, one branch per site).
+
+# One app with three branches instead of three apps: new AWS accounts are held to a single
+# Amplify app (and can't create CloudFront distributions) until AWS verifies the account.
+
+Resources:
+  HostingApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Sub '${AWS::StackName}'
+      Description: EventPass admin, attendee and gate frontends
+      # SPA fallback: deep links like /ticket/manage serve index.html
+      CustomRules:
+        - Source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|webp|woff|woff2|ttf|otf|map|json|wasm|frag|bin)$)([^.]+$)/>'
+          Target: /index.html
+          Status: '200'
+
+  AdminBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt HostingApp.AppId
+      BranchName: admin
+      Stage: PRODUCTION
+
+  AttendeeBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt HostingApp.AppId
+      BranchName: attendee
+      Stage: PRODUCTION
+
+  GateBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt HostingApp.AppId
+      BranchName: gate
+      Stage: PRODUCTION
+
+Outputs:
+  AppId:
+    Value: !GetAtt HostingApp.AppId
+  AdminUrl:
+    Value: !Sub 'https://admin.${HostingApp.DefaultDomain}'
+  AdminBranch:
+    Value: admin
+  AttendeeUrl:
+    Value: !Sub 'https://attendee.${HostingApp.DefaultDomain}'
+  AttendeeBranch:
+    Value: attendee
+  GateUrl:
+    Value: !Sub 'https://gate.${HostingApp.DefaultDomain}'
+  GateBranch:
+    Value: gate

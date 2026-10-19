@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class GateService {
-  static const String defaultBaseUrl =
-      'https://c2ck14z7ga.execute-api.ap-south-1.amazonaws.com/Prod';
+  static const String defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://c2ck14z7ga.execute-api.ap-south-1.amazonaws.com/Prod',
+  );
 
   static const String gateApiKey =
       String.fromEnvironment('GATE_API_KEY');

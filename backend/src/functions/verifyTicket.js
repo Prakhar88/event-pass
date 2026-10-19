@@ -2,6 +2,7 @@ const { ok, parseBody } = require('../lib/http');
 const { getTicket, checkInTicket } = require('../lib/db');
 const { getJwtSecret } = require('../lib/secrets');
 const { verifyTicketToken } = require('../lib/jwt');
+const { isTelegramEnabled, sendMessage, escapeHtml } = require('../lib/telegram');
 
 exports.handler = async (event) => {
   try {
@@ -23,6 +24,13 @@ exports.handler = async (event) => {
 
     try {
       const checkedInAt = await checkInTicket(ticketId, gateId);
+      if (ticket.telegramChatId && isTelegramEnabled()) {
+        // Best effort: a Telegram outage must never block entry at the gate
+        await sendMessage(
+          ticket.telegramChatId,
+          `✅ <b>Checked in</b> at ${escapeHtml(gateId || 'the gate')}. Enjoy the event, ${escapeHtml(ticket.attendeeName)}!`
+        ).catch((tgErr) => console.error('verifyTicket telegram error', tgErr));
+      }
       return ok(200, {
         valid: true,
         ticketId,

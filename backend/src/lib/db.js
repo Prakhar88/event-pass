@@ -177,6 +177,33 @@ async function markTicketSent(ticketId) {
   );
 }
 
+async function getTicketByTelegramLinkCode(telegramLinkCode) {
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TICKETS_TABLE,
+      IndexName: 'TelegramLinkIndex',
+      KeyConditionExpression: 'telegramLinkCode = :code',
+      ExpressionAttributeValues: { ':code': telegramLinkCode },
+    })
+  );
+  if (!Items || !Items.length) return null;
+  // GSI projections are eventually consistent; read the full, current item
+  return getTicket(Items[0].ticketId);
+}
+
+// Consumes the one-time link code and remembers the chat for gate notifications
+async function linkTelegramChat(ticketId, chatId, telegramLinkCode) {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TICKETS_TABLE,
+      Key: { ticketId },
+      UpdateExpression: 'SET telegramChatId = :chatId REMOVE telegramLinkCode',
+      ConditionExpression: 'telegramLinkCode = :code',
+      ExpressionAttributeValues: { ':chatId': chatId, ':code': telegramLinkCode },
+    })
+  );
+}
+
 // The core anti-fraud mechanism: an atomic conditional update. Two
 // near-simultaneous scans of the same (duplicated/screenshotted) QR race
 // here, and only one can ever win, because the condition only matches a
@@ -330,6 +357,8 @@ async function findRecentChallenge({ email, purpose, cooldownSeconds }) {
 }
 
 module.exports = {
+  getTicketByTelegramLinkCode,
+  linkTelegramChat,
   putAdmin,
   getAdminById,
   getAdminByEmail,

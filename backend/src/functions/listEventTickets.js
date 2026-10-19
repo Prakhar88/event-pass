@@ -21,7 +21,7 @@ exports.handler = async (event) => {
     const tickets = await listTicketsByEvent(eventId);
 
     // Strip qrToken from responses
-    const safeTickets = tickets.map(({ qrToken, ...safeTicket }) => safeTicket);
+    const safeTickets = tickets.map(({ qrToken, telegramLinkCode, ...safeTicket }) => safeTicket);
     return ok(200, safeTickets);
   } catch (err) {
     console.error('listEventTickets error', err);

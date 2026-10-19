@@ -4,6 +4,7 @@ const { getJwtSecret } = require('./secrets');
 const { signTicketToken } = require('./jwt');
 const { generateQrPngBuffer } = require('./qrcode');
 const { sendTicketEmail } = require('./email');
+const { isTelegramEnabled, generateLinkCode, buildDeepLink } = require('./telegram');
 
 async function issueTicketForEvent({ eventId, attendeeName, attendeeEmail }) {
   if (!eventId) {
@@ -65,6 +66,7 @@ async function issueTicketForEvent({ eventId, attendeeName, attendeeEmail }) {
     attendeeEmail: normalizedEmail,
     status: 'ISSUED',
     qrToken, // stored internally so /resend can re-send exact same QR
+    ...(isTelegramEnabled() && { telegramLinkCode: generateLinkCode() }),
     issuedAt: new Date().toISOString(),
     checkedInAt: null,
     checkedInBy: null,
@@ -89,6 +91,7 @@ async function issueTicketForEvent({ eventId, attendeeName, attendeeEmail }) {
       qrBuffer,
       ticketId,
       frontendBaseUrl: process.env.FRONTEND_BASE_URL,
+      telegramLink: ticket.telegramLinkCode ? buildDeepLink(ticket.telegramLinkCode) : null,
     });
     await markTicketSent(ticketId);
     emailSent = true;
